@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
-from sklearn.preprocessing import QuantileTransformer
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import pickle
 import warnings
@@ -80,7 +80,7 @@ def handle_missing_values(df, cols_invalid_zero=["Glucose", "BloodPressure", "Sk
 def normalize_features(df, num_cols=['Pregnancies','Glucose','BloodPressure','SkinThickness',
                                     'Insulin','BMI', 'DiabetesPedigreeFunction', 'Age']):
     """
-    Normalize numerical features using QuantileTransformer.
+    Normalize numerical features using Standard Scaler.
     
     Args:
         df (pd.DataFrame): Input dataframe
@@ -91,7 +91,7 @@ def normalize_features(df, num_cols=['Pregnancies','Glucose','BloodPressure','Sk
     """
     df_processed = df.copy()
     
-    scaler = QuantileTransformer(n_quantiles=100, random_state=0, output_distribution='normal')
+    scaler = StandardScaler()
     df_processed[num_cols] = scaler.fit_transform(df_processed[num_cols])
     
     print("Feature normalization completed")
