@@ -1,9 +1,3 @@
-"""
-Diabetes Data Preprocessing Automation Script
-Author: Lukas
-Description: This script contains automated functions to preprocess the diabetes dataset.
-"""
-
 import numpy as np
 import pandas as pd
 import os
@@ -54,7 +48,6 @@ def handle_outliers(df, columns=['Insulin', 'DiabetesPedigreeFunction']):
             low_lim = Q1 - 1.5 * IQR
             up_lim = Q3 + 1.5 * IQR
             
-            # Replace outliers with the respective lower or upper limit
             df_processed[column_name] = np.where(df_processed[column_name] < low_lim, low_lim, df_processed[column_name])
             df_processed[column_name] = np.where(df_processed[column_name] > up_lim, up_lim, df_processed[column_name])
             
@@ -76,10 +69,8 @@ def handle_missing_values(df, cols_invalid_zero=["Glucose", "BloodPressure", "Sk
     """
     df_processed = df.copy()
     
-    # Replace invalid zeros with NaN
     df_processed[cols_invalid_zero] = df_processed[cols_invalid_zero].replace(0, np.nan)
     
-    # Fill NaN values with median
     df_processed[cols_invalid_zero] = df_processed[cols_invalid_zero].fillna(df_processed[cols_invalid_zero].median())
     
     print("Missing values handled successfully")
@@ -143,48 +134,37 @@ def preprocess_diabetes_data(file_path='diabetes.csv', test_size=0.3, random_sta
     """
     print("Starting diabetes data preprocessing pipeline...")
     
-    # Step 1: Load data
     df = load_data(file_path)
     
-    # Step 2: Handle outliers
     df = handle_outliers(df)
     
-    # Step 3: Handle missing values
     df = handle_missing_values(df)
     
-    # Step 4: Normalize features
     df, scaler = normalize_features(df)
     
-    # Step 5: Prepare features and target
     X, y = prepare_features_target(df)
     
-    # Step 6: Split data
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=test_size, random_state=random_state)
     
     print(f"Data split completed:")
     print(f"Training set: {X_train.shape}, Validation set: {X_val.shape}")
     
-    # Determine the correct output directory (should be in same directory as this script)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, 'diabetes_preprocessing')
     
-    # Create output directory first
     os.makedirs(output_dir, exist_ok=True)
     
-    # Step 7: Save scaler if requested
     if save_scaler:
         scaler_path = os.path.join(output_dir, 'scaler.pkl')
         with open(scaler_path, 'wb') as f:
             pickle.dump(scaler, f)
         print(f"Scaler saved to '{scaler_path}'")
     
-    # Save training data
     X_train.to_csv(os.path.join(output_dir, 'X_train.csv'), index=False)
     X_val.to_csv(os.path.join(output_dir, 'X_val.csv'), index=False)
     y_train.to_csv(os.path.join(output_dir, 'y_train.csv'), index=False)
     y_val.to_csv(os.path.join(output_dir, 'y_val.csv'), index=False)
     
-    # Save complete preprocessed dataset
     preprocessed_df = pd.concat([X, y], axis=1)
     preprocessed_df.to_csv(os.path.join(output_dir, 'diabetes_preprocessed.csv'), index=False)
     
