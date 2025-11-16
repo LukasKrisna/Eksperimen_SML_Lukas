@@ -47,7 +47,7 @@ jobs:
           python -c "import pandas as pd; df = pd.read_csv('preprocessing/diabetes_preprocessing/diabetes_preprocessed.csv'); print(f'Shape: {df.shape}'); print(df.info())"
 
       - name: Upload preprocessed data as artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: preprocessed-diabetes-data
           path: |
