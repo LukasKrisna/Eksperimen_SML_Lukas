@@ -1,0 +1,226 @@
+"""
+Diabetes Data Preprocessing Automation Script
+Author: Lukas
+Description: This script contains automated functions to preprocess the diabetes dataset.
+"""
+
+import numpy as np
+import pandas as pd
+import os
+from sklearn.preprocessing import QuantileTransformer
+from sklearn.model_selection import train_test_split
+import pickle
+import warnings
+warnings.filterwarnings('ignore')
+
+
+def load_data(file_path='diabetes.csv'):
+    """
+    Load diabetes dataset from CSV file.
+    
+    Args:
+        file_path (str): Path to the diabetes CSV file
+        
+    Returns:
+        pd.DataFrame: Loaded dataset
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Dataset file not found: {file_path}")
+    
+    df = pd.read_csv(file_path)
+    print(f"Dataset loaded successfully. Shape: {df.shape}")
+    return df
+
+
+def handle_outliers(df, columns=['Insulin', 'DiabetesPedigreeFunction']):
+    """
+    Handle outliers using IQR method for specified columns.
+    
+    Args:
+        df (pd.DataFrame): Input dataframe
+        columns (list): List of columns to handle outliers for
+        
+    Returns:
+        pd.DataFrame: Dataframe with outliers handled
+    """
+    df_processed = df.copy()
+    
+    for column_name in columns:
+        if column_name in df_processed.columns:
+            Q1 = np.percentile(df_processed[column_name], 25, interpolation='midpoint')
+            Q3 = np.percentile(df_processed[column_name], 75, interpolation='midpoint')
+            
+            IQR = Q3 - Q1
+            low_lim = Q1 - 1.5 * IQR
+            up_lim = Q3 + 1.5 * IQR
+            
+            # Replace outliers with the respective lower or upper limit
+            df_processed[column_name] = np.where(df_processed[column_name] < low_lim, low_lim, df_processed[column_name])
+            df_processed[column_name] = np.where(df_processed[column_name] > up_lim, up_lim, df_processed[column_name])
+            
+            print(f"Outliers handled for column: {column_name}")
+    
+    return df_processed
+
+
+def handle_missing_values(df, cols_invalid_zero=["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]):
+    """
+    Handle missing values by replacing zeros with NaN and then filling with median.
+    
+    Args:
+        df (pd.DataFrame): Input dataframe
+        cols_invalid_zero (list): Columns where 0 values are invalid and should be treated as missing
+        
+    Returns:
+        pd.DataFrame: Dataframe with missing values handled
+    """
+    df_processed = df.copy()
+    
+    # Replace invalid zeros with NaN
+    df_processed[cols_invalid_zero] = df_processed[cols_invalid_zero].replace(0, np.nan)
+    
+    # Fill NaN values with median
+    df_processed[cols_invalid_zero] = df_processed[cols_invalid_zero].fillna(df_processed[cols_invalid_zero].median())
+    
+    print("Missing values handled successfully")
+    return df_processed
+
+
+def normalize_features(df, num_cols=['Pregnancies','Glucose','BloodPressure','SkinThickness',
+                                    'Insulin','BMI', 'DiabetesPedigreeFunction', 'Age']):
+    """
+    Normalize numerical features using QuantileTransformer.
+    
+    Args:
+        df (pd.DataFrame): Input dataframe
+        num_cols (list): List of numerical columns to normalize
+        
+    Returns:
+        tuple: (normalized_dataframe, fitted_scaler)
+    """
+    df_processed = df.copy()
+    
+    scaler = QuantileTransformer(n_quantiles=100, random_state=0, output_distribution='normal')
+    df_processed[num_cols] = scaler.fit_transform(df_processed[num_cols])
+    
+    print("Feature normalization completed")
+    return df_processed, scaler
+
+
+def prepare_features_target(df, target_column='Outcome'):
+    """
+    Separate features and target variable.
+    
+    Args:
+        df (pd.DataFrame): Input dataframe
+        target_column (str): Name of the target column
+        
+    Returns:
+        tuple: (features_dataframe, target_series)
+    """
+    if target_column not in df.columns:
+        raise ValueError(f"Target column '{target_column}' not found in dataframe")
+    
+    X = df.drop(target_column, axis=1)
+    y = df[target_column]
+    
+    print(f"Features shape: {X.shape}, Target shape: {y.shape}")
+    return X, y
+
+
+def preprocess_diabetes_data(file_path='diabetes.csv', test_size=0.3, random_state=42, save_scaler=True):
+    """
+    Complete preprocessing pipeline for diabetes dataset.
+    
+    Args:
+        file_path (str): Path to the diabetes CSV file
+        test_size (float): Proportion of data to use for testing
+        random_state (int): Random state for reproducibility
+        save_scaler (bool): Whether to save the fitted scaler
+        
+    Returns:
+        tuple: (X_train, X_val, y_train, y_val, scaler)
+    """
+    print("Starting diabetes data preprocessing pipeline...")
+    
+    # Step 1: Load data
+    df = load_data(file_path)
+    
+    # Step 2: Handle outliers
+    df = handle_outliers(df)
+    
+    # Step 3: Handle missing values
+    df = handle_missing_values(df)
+    
+    # Step 4: Normalize features
+    df, scaler = normalize_features(df)
+    
+    # Step 5: Prepare features and target
+    X, y = prepare_features_target(df)
+    
+    # Step 6: Split data
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    
+    print(f"Data split completed:")
+    print(f"Training set: {X_train.shape}, Validation set: {X_val.shape}")
+    
+    # Create output directory first
+    os.makedirs('diabetes_preprocessing', exist_ok=True)
+    
+    # Step 7: Save scaler if requested
+    if save_scaler:
+        with open('diabetes_preprocessing/scaler.pkl', 'wb') as f:
+            pickle.dump(scaler, f)
+        print("Scaler saved to 'diabetes_preprocessing/scaler.pkl'")
+    
+    # Save training data
+    X_train.to_csv('diabetes_preprocessing/X_train.csv', index=False)
+    X_val.to_csv('diabetes_preprocessing/X_val.csv', index=False)
+    y_train.to_csv('diabetes_preprocessing/y_train.csv', index=False)
+    y_val.to_csv('diabetes_preprocessing/y_val.csv', index=False)
+    
+    # Save complete preprocessed dataset
+    preprocessed_df = pd.concat([X, y], axis=1)
+    preprocessed_df.to_csv('diabetes_preprocessing/diabetes_preprocessed.csv', index=False)
+    
+    print("Preprocessed data saved to 'diabetes_preprocessing/' folder")
+    print("Preprocessing pipeline completed successfully!")
+    
+    return X_train, X_val, y_train, y_val, scaler
+
+
+def load_preprocessed_data(data_dir='diabetes_preprocessing'):
+    """
+    Load preprocessed data from saved files.
+    
+    Args:
+        data_dir (str): Directory containing preprocessed data files
+        
+    Returns:
+        tuple: (X_train, X_val, y_train, y_val, scaler)
+    """
+    try:
+        X_train = pd.read_csv(f'{data_dir}/X_train.csv')
+        X_val = pd.read_csv(f'{data_dir}/X_val.csv')
+        y_train = pd.read_csv(f'{data_dir}/y_train.csv').squeeze()
+        y_val = pd.read_csv(f'{data_dir}/y_val.csv').squeeze()
+        
+        with open(f'{data_dir}/scaler.pkl', 'rb') as f:
+            scaler = pickle.load(f)
+        
+        print("Preprocessed data loaded successfully")
+        return X_train, X_val, y_train, y_val, scaler
+        
+    except FileNotFoundError as e:
+        print(f"Error loading preprocessed data: {e}")
+        print("Please run the preprocessing pipeline first")
+        return None
+
+
+if __name__ == "__main__":
+    # Run the complete preprocessing pipeline
+    X_train, X_val, y_train, y_val, scaler = preprocess_diabetes_data(
+        file_path='../diabetes.csv',
+        test_size=0.3,
+        random_state=42
+    )

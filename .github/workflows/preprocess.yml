@@ -1,0 +1,68 @@
+name: Automated Data Preprocessing
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "diabetes.csv"
+      - "preprocessing/automate_Lukas.py"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  preprocess-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create preprocessing directory
+        run: |
+          mkdir -p preprocessing/diabetes_preprocessing
+
+      - name: Run data preprocessing
+        run: |
+          cd preprocessing
+          python automate_Lukas.py
+
+      - name: Check preprocessed files
+        run: |
+          ls -la preprocessing/diabetes_preprocessing/
+          echo "=== X_train.csv preview ==="
+          head -5 preprocessing/diabetes_preprocessing/X_train.csv
+          echo "=== y_train.csv preview ==="
+          head -5 preprocessing/diabetes_preprocessing/y_train.csv
+          echo "=== Preprocessed dataset info ==="
+          python -c "import pandas as pd; df = pd.read_csv('preprocessing/diabetes_preprocessing/diabetes_preprocessed.csv'); print(f'Shape: {df.shape}'); print(df.info())"
+
+      - name: Upload preprocessed data as artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: preprocessed-diabetes-data
+          path: |
+            preprocessing/diabetes_preprocessing/
+          retention-days: 30
+
+      - name: Commit preprocessed data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add preprocessing/diabetes_preprocessing/
+          git diff --staged --quiet || git commit -m "Update preprocessed data [automated]"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
