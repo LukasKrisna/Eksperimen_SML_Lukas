@@ -164,48 +164,58 @@ def preprocess_diabetes_data(file_path='diabetes.csv', test_size=0.3, random_sta
     print(f"Data split completed:")
     print(f"Training set: {X_train.shape}, Validation set: {X_val.shape}")
     
+    # Determine the correct output directory (should be in same directory as this script)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(script_dir, 'diabetes_preprocessing')
+    
     # Create output directory first
-    os.makedirs('diabetes_preprocessing', exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     
     # Step 7: Save scaler if requested
     if save_scaler:
-        with open('diabetes_preprocessing/scaler.pkl', 'wb') as f:
+        scaler_path = os.path.join(output_dir, 'scaler.pkl')
+        with open(scaler_path, 'wb') as f:
             pickle.dump(scaler, f)
-        print("Scaler saved to 'diabetes_preprocessing/scaler.pkl'")
+        print(f"Scaler saved to '{scaler_path}'")
     
     # Save training data
-    X_train.to_csv('diabetes_preprocessing/X_train.csv', index=False)
-    X_val.to_csv('diabetes_preprocessing/X_val.csv', index=False)
-    y_train.to_csv('diabetes_preprocessing/y_train.csv', index=False)
-    y_val.to_csv('diabetes_preprocessing/y_val.csv', index=False)
+    X_train.to_csv(os.path.join(output_dir, 'X_train.csv'), index=False)
+    X_val.to_csv(os.path.join(output_dir, 'X_val.csv'), index=False)
+    y_train.to_csv(os.path.join(output_dir, 'y_train.csv'), index=False)
+    y_val.to_csv(os.path.join(output_dir, 'y_val.csv'), index=False)
     
     # Save complete preprocessed dataset
     preprocessed_df = pd.concat([X, y], axis=1)
-    preprocessed_df.to_csv('diabetes_preprocessing/diabetes_preprocessed.csv', index=False)
+    preprocessed_df.to_csv(os.path.join(output_dir, 'diabetes_preprocessed.csv'), index=False)
     
-    print("Preprocessed data saved to 'diabetes_preprocessing/' folder")
+    print(f"Preprocessed data saved to '{output_dir}/' folder")
     print("Preprocessing pipeline completed successfully!")
     
     return X_train, X_val, y_train, y_val, scaler
 
 
-def load_preprocessed_data(data_dir='diabetes_preprocessing'):
+def load_preprocessed_data(data_dir=None):
     """
     Load preprocessed data from saved files.
     
     Args:
-        data_dir (str): Directory containing preprocessed data files
+        data_dir (str): Directory containing preprocessed data files. 
+                       If None, uses diabetes_preprocessing in same directory as script.
         
     Returns:
         tuple: (X_train, X_val, y_train, y_val, scaler)
     """
     try:
-        X_train = pd.read_csv(f'{data_dir}/X_train.csv')
-        X_val = pd.read_csv(f'{data_dir}/X_val.csv')
-        y_train = pd.read_csv(f'{data_dir}/y_train.csv').squeeze()
-        y_val = pd.read_csv(f'{data_dir}/y_val.csv').squeeze()
+        if data_dir is None:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            data_dir = os.path.join(script_dir, 'diabetes_preprocessing')
         
-        with open(f'{data_dir}/scaler.pkl', 'rb') as f:
+        X_train = pd.read_csv(os.path.join(data_dir, 'X_train.csv'))
+        X_val = pd.read_csv(os.path.join(data_dir, 'X_val.csv'))
+        y_train = pd.read_csv(os.path.join(data_dir, 'y_train.csv')).squeeze()
+        y_val = pd.read_csv(os.path.join(data_dir, 'y_val.csv')).squeeze()
+        
+        with open(os.path.join(data_dir, 'scaler.pkl'), 'rb') as f:
             scaler = pickle.load(f)
         
         print("Preprocessed data loaded successfully")

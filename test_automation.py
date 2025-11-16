@@ -34,7 +34,10 @@ def test_preprocessing_pipeline():
         print("Testing Data Loading")
         print("="*30)
         
-        loaded_data = load_preprocessed_data('diabetes_preprocessing')
+        # Change to preprocessing directory to test loading
+        os.chdir('preprocessing')
+        loaded_data = load_preprocessed_data()  # Uses default path now
+        os.chdir('..')  # Change back
         
         if loaded_data is not None:
             print("✅ Preprocessed data loaded successfully!")
