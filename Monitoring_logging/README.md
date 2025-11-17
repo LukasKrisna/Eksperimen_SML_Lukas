@@ -58,9 +58,9 @@ Monitoring_logging/
 ### System Requirements
 
 - Python 3.12.7
+- Docker (for running the ML model container)
 - Prometheus (latest version)
 - Grafana (latest version)
-- Running MLflow model server (on port 5005)
 
 ### Python Dependencies
 
@@ -75,14 +75,41 @@ psutil==5.9.0
 
 ## Installation
 
-### 1. Install Python Dependencies
+### 1. Install Docker
+
+**macOS:**
+```bash
+brew install --cask docker
+# Or download Docker Desktop from https://www.docker.com/products/docker-desktop
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get update
+sudo apt-get install docker.io
+sudo systemctl start docker
+sudo systemctl enable docker
+# Add your user to docker group
+sudo usermod -aG docker $USER
+```
+
+**Windows:**
+Download and install Docker Desktop from https://www.docker.com/products/docker-desktop
+
+**Verify Docker installation:**
+```bash
+docker --version
+docker run hello-world
+```
+
+### 2. Install Python Dependencies
 
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 2. Install Prometheus
+### 3. Install Prometheus
 
 **macOS:**
 ```bash
@@ -99,7 +126,7 @@ cd prometheus-*
 **Windows:**
 Download from https://prometheus.io/download/
 
-### 3. Install Grafana
+### 4. Install Grafana
 
 **macOS:**
 ```bash
@@ -229,13 +256,31 @@ sudo systemctl restart grafana-server
 
 ## Usage
 
-### Step 1: Start the ML Model Server
+### Step 1: Start the ML Model Docker Container
 
-First, ensure your MLflow model server is running on port 5005:
+Pull and run the diabetes prediction model Docker image:
 
 ```bash
-mlflow models serve -m /path/to/model -p 5005 --env-manager=local
+# Pull the Docker image
+docker pull lukaskrisna/diabetes-model:latest
+
+# Run the container and map port 8080 to 5005
+docker run -d -p 5005:8080 --name diabetes-model lukaskrisna/diabetes-model:latest
 ```
+
+The model server will be accessible at `http://127.0.0.1:5005/invocations`
+
+**Verify the model is running:**
+
+```bash
+# Check container status
+docker ps
+
+# Check model health (optional)
+curl http://127.0.0.1:5005/ping
+```
+
+**Note:** The Docker container runs the MLflow model server on port 8080 internally, which is mapped to port 5005 on your host machine to match the Prometheus exporter configuration.
 
 ### Step 2: Start Prometheus Exporter
 
@@ -295,6 +340,42 @@ payload = {
 
 response = requests.post(url, json=payload)
 print(response.json())
+```
+
+### Managing the Docker Container
+
+**View container logs:**
+```bash
+docker logs diabetes-model
+
+# Follow logs in real-time
+docker logs -f diabetes-model
+```
+
+**Stop the container:**
+```bash
+docker stop diabetes-model
+```
+
+**Start the container again:**
+```bash
+docker start diabetes-model
+```
+
+**Restart the container:**
+```bash
+docker restart diabetes-model
+```
+
+**Remove the container:**
+```bash
+docker stop diabetes-model
+docker rm diabetes-model
+```
+
+**Check container resource usage:**
+```bash
+docker stats diabetes-model
 ```
 
 ## Monitored Metrics
@@ -469,12 +550,14 @@ Returns prediction results and updates metrics.
 
 ## Workflow
 
-1. Client sends prediction request to Flask exporter (port 8000)
-2. Flask exporter forwards request to MLflow model server (port 5005)
-3. Flask exporter records metrics (latency, success/failure, system resources)
-4. Prometheus scrapes metrics from Flask exporter every 5 seconds
-5. Grafana queries Prometheus and displays real-time dashboards
-6. Alerts trigger when thresholds are exceeded
+1. Docker container runs MLflow model server (internal port 8080, mapped to host port 5005)
+2. Client sends prediction request to Flask exporter (port 8000)
+3. Flask exporter forwards request to MLflow model server in Docker container (port 5005)
+4. Model processes request and returns prediction
+5. Flask exporter records metrics (latency, success/failure, system resources)
+6. Prometheus scrapes metrics from Flask exporter every 5 seconds
+7. Grafana queries Prometheus and displays real-time dashboards
+8. Alerts trigger when thresholds are exceeded and send email notifications
 
 ## Screenshots
 
