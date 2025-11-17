@@ -1,0 +1,5 @@
+DockerHub:
+https://hub.docker.com/r/lukaskrisna/diabetes-model
+
+Workflow repository
+https://github.com/LukasKrisna/Workflow_SML_Lukas
